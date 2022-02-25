@@ -18,18 +18,22 @@
 #
 import copy
 
-from pipeline.param.base_param import BaseParam
-from pipeline.param.cross_validation_param import CrossValidationParam
-from pipeline.param.encrypt_param import EncryptParam
-from pipeline.param.encrypted_mode_calculation_param import EncryptedModeCalculatorParam
-from pipeline.param.init_model_param import InitParam
-from pipeline.param.predict_param import PredictParam
-from pipeline.param.stepwise_param import StepwiseParam
-from pipeline.param.sqn_param import StochasticQuasiNewtonParam
-from pipeline.param.callback_param import CallbackParam
-from pipeline.param import consts
+from federatedml.param.base_param import BaseParam, deprecated_param
+from federatedml.param.callback_param import CallbackParam
+from federatedml.param.cross_validation_param import CrossValidationParam
+from federatedml.param.encrypt_param import EncryptParam
+from federatedml.param.encrypted_mode_calculation_param import EncryptedModeCalculatorParam
+from federatedml.param.init_model_param import InitParam
+from federatedml.param.predict_param import PredictParam
+from federatedml.param.sqn_param import StochasticQuasiNewtonParam
+from federatedml.param.stepwise_param import StepwiseParam
+from federatedml.util import consts
+
+deprecated_param_list = ["early_stopping_rounds", "validation_freqs", "metrics",
+                         "use_first_metric_only"]
 
 
+@deprecated_param(*deprecated_param_list)
 class LogisticParam(BaseParam):
     """
     Parameters used for Logistic Regression both for Homo mode or Hetero mode.
@@ -233,6 +237,7 @@ class LogisticParam(BaseParam):
                 raise ValueError("early stopping rounds should be larger than 0 when it's integer")
             if self.validation_freqs is None:
                 raise ValueError("validation freqs must be set when early stopping is enabled")
+
         if self.metrics is not None and not isinstance(self.metrics, list):
             raise ValueError("metrics should be a list")
 
@@ -240,13 +245,36 @@ class LogisticParam(BaseParam):
             raise ValueError("use_first_metric_only should be a boolean")
 
         if self.floating_point_precision is not None and \
-                (not isinstance(self.floating_point_precision, int) or\
+                (not isinstance(self.floating_point_precision, int) or \
                  self.floating_point_precision < 0 or self.floating_point_precision > 63):
             raise ValueError("floating point precision should be null or a integer between 0 and 63")
+
+        for p in ["early_stopping_rounds", "validation_freqs", "metrics",
+                  "use_first_metric_only"]:
+            # if self._warn_to_deprecate_param(p, "", ""):
+            if self._deprecated_params_set.get(p):
+                if "callback_param" in self.get_user_feeded():
+                    raise ValueError(f"{p} and callback param should not be set simultaneously，"
+                                     f"{self._deprecated_params_set}, {self.get_user_feeded()}")
+                else:
+                    self.callback_param.callbacks = ["PerformanceEvaluate"]
+                break
+
+        if self._warn_to_deprecate_param("validation_freqs", descr, "callback_param's 'validation_freqs'"):
+            self.callback_param.validation_freqs = self.validation_freqs
+
+        if self._warn_to_deprecate_param("early_stopping_rounds", descr, "callback_param's 'early_stopping_rounds'"):
+            self.callback_param.early_stopping_rounds = self.early_stopping_rounds
+
+        if self._warn_to_deprecate_param("metrics", descr, "callback_param's 'metrics'"):
+            self.callback_param.metrics = self.metrics
+
+        if self._warn_to_deprecate_param("use_first_metric_only", descr, "callback_param's 'use_first_metric_only'"):
+            self.callback_param.use_first_metric_only = self.use_first_metric_only
         return True
 
 
-class HomoLogisticParam(LogisticParam):
+class PoisonParam(LogisticParam):
     """
     Parameters
     ----------
@@ -266,6 +294,7 @@ class HomoLogisticParam(LogisticParam):
         To scale the proximal term
 
     """
+
     def __init__(self, penalty='L2',
                  tol=1e-4, alpha=1.0, optimizer='rmsprop',
                  batch_size=-1, learning_rate=0.01, init_param=InitParam(),
@@ -278,9 +307,17 @@ class HomoLogisticParam(LogisticParam):
                  metrics=['auc', 'ks'],
                  use_first_metric_only=False,
                  use_proximal=False,
-                 mu=0.1, callback_param=CallbackParam()
+                 mu=0.1, callback_param=CallbackParam(),
+                 poison=False,
+                 poison_iters=1,
+                 detect=False,
+                 detect_tol=None,
+                 detect_rule=None,
+                 defence=False,
+                 defence_rule=None,
+                 defence_tol=1
                  ):
-        super(HomoLogisticParam, self).__init__(penalty=penalty, tol=tol, alpha=alpha, optimizer=optimizer,
+        super(PoisonParam, self).__init__(penalty=penalty, tol=tol, alpha=alpha, optimizer=optimizer,
                                                 batch_size=batch_size,
                                                 learning_rate=learning_rate,
                                                 init_param=init_param, max_iter=max_iter, early_stop=early_stop,
@@ -295,6 +332,14 @@ class HomoLogisticParam(LogisticParam):
         self.aggregate_iters = aggregate_iters
         self.use_proximal = use_proximal
         self.mu = mu
+        self.poison = poison
+        self.poison_iters = poison_iters
+        self.detect = detect
+        self.detect_tol = detect_tol
+        self.detect_rule = detect_rule
+        self.defence = defence
+        self.defence_tol = defence_tol
+        self.defence_rule = defence_rule
 
     def check(self):
         super().check()
@@ -322,11 +367,6 @@ class HomoLogisticParam(LogisticParam):
             raise ValueError("'sqn' optimizer is supported for hetero mode only.")
 
         return True
-
-
-
-
-
 
 
 class HeteroLogisticParam(LogisticParam):
