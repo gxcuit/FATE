@@ -36,6 +36,8 @@ from federatedml.util import fate_operator
 from federatedml.util.io_check import assert_io_num_rows_equal
 
 
+
+
 class HomoLRHost(HomoLRBase):
     def __init__(self):
         super(HomoLRHost, self).__init__()
@@ -47,6 +49,7 @@ class HomoLRHost(HomoLRBase):
         self.model_weights = None
         self.cipher = None
         self.model_param = PoisonParam()
+        self.number_participants = 0
 
     def _init_model(self, params):
         super()._init_model(params)
@@ -60,6 +63,9 @@ class HomoLRHost(HomoLRBase):
         else:
             self.use_encrypt = False
             self.gradient_operator = LogisticGradient()
+        # poison
+        self.poison = params.poison
+        self.poison_iters = params.poison_iters
 
     def fit(self, data_instances, validate_data=None):
         self.aggregator = aggregator.Host()
@@ -101,19 +107,33 @@ class HomoLRHost(HomoLRBase):
         model_weights = self.model_weights
         self.prev_round_weights = copy.deepcopy(model_weights)
         degree = 0
+        self.number_participants = len(self.component_properties.host_party_idlist) + 1
+
         while self.n_iter_ < self.max_iter + 1:
             self.callback_list.on_epoch_begin(self.n_iter_)
 
             batch_data_generator = mini_batch_obj.mini_batch_data_generator()
-
+            self.optimizer.set_iters(self.n_iter_)
             if ((self.n_iter_ + 1) % self.aggregate_iters == 0) or self.n_iter_ == self.max_iter:
-                weight = self.aggregator.aggregate_then_get(model_weights, degree=degree,
+                LOGGER.debug("\nn_iter {}, model_weights{}".format(self.n_iter_,
+                                                                   model_weights.unboxed))
+
+                if self.poison and self.n_iter_ >= 1 and self.n_iter_ % self.poison_iters == 0:
+                    model_weights = model_weights - guest_weights
+                unencrypted_model_weights = copy.deepcopy(model_weights)
+                LOGGER.debug("\nn_iter{}:before aggregated(sending): {}".format(
+                    self.n_iter_, model_weights.unboxed))
+                weight = self.aggregator.aggregate_then_get(model_weights,
+                                                            degree=degree,
                                                             suffix=self.n_iter_)
-                # LOGGER.debug("Before aggregate: {}, degree: {} after aggregated: {}".format(
-                #     model_weights.unboxed / degree,
-                #     degree,
-                #     weight.unboxed))
+                LOGGER.debug("\nn_iter{}:after aggregated: {}".format(self.n_iter_, weight.unboxed))
+
                 self.model_weights = LogisticRegressionWeights(weight.unboxed, self.fit_intercept)
+                if self.poison:
+                    guest_weights = copy.deepcopy(
+                        self.model_weights) * self.number_participants - unencrypted_model_weights
+                    LOGGER.debug("\nn_iter{}: guest_weights{}".format(self.n_iter_,
+                                                                      guest_weights.unboxed))
                 if not self.use_encrypt:
                     loss = self._compute_loss(data_instances, self.prev_round_weights)
                     self.aggregator.send_loss(loss, degree=degree, suffix=(self.n_iter_,))
@@ -136,16 +156,24 @@ class HomoLRHost(HomoLRBase):
                                       fit_intercept=self.fit_intercept)
                 grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
                 grad /= n
+                LOGGER.debug("grad:{}".format(grad))
+                if self.poison and ((self.n_iter_ + 1) % self.poison_iters == 0 or
+                                    (self.n_iter_ + 1) == self.max_iter):
+                    LOGGER.info("\nniter:{}:poisoning".format(self.n_iter_ + 1))
+                    grad *= self.poison_iters * -1 * self.number_participants
                 if self.use_proximal:  # use additional proximal term
                     model_weights = self.optimizer.update_model(model_weights,
                                                                 grad=grad,
                                                                 has_applied=False,
                                                                 prev_round_weights=self.prev_round_weights)
                 else:
+                    LOGGER.info('\nBefore train weigtht{},iter{}'.format(
+                        model_weights.unboxed, self.n_iter_))
                     model_weights = self.optimizer.update_model(model_weights,
                                                                 grad=grad,
                                                                 has_applied=False)
-
+                    LOGGER.info('\nAfter train weigtht{},iter{}'.format(
+                        model_weights.unboxed, self.n_iter_))
                 if self.use_encrypt and batch_num % self.re_encrypt_batches == 0:
                     LOGGER.debug("Before accept re_encrypted_model, batch_iter_num: {}".format(batch_num))
                     w = self.cipher.re_cipher(w=model_weights.unboxed,

@@ -44,6 +44,15 @@ class HomoLRGuest(HomoLRBase):
 
     def _init_model(self, params):
         super()._init_model(params)
+        # detect
+        self.detect = params.detect
+        self.detect_tol = params.detect_tol
+        self.detect_rule = params.detect_rule
+        if self.detect and self.detect_rule != 'loss':
+            LOGGER.error('detect rule in Guest only supports loss, but get {}'.format(
+                self.detect_rule))
+            raise ValueError('detect rule in Guest only supports loss, but get {}'.format(
+                self.detect_rule))
 
     def fit(self, data_instances, validate_data=None):
         self.aggregator = aggregator.Guest()
@@ -69,22 +78,32 @@ class HomoLRGuest(HomoLRBase):
 
         degree = 0
         self.prev_round_weights = copy.deepcopy(model_weights)
-
+        local_loss = 0
         while self.n_iter_ < max_iter + 1:
             self.callback_list.on_epoch_begin(self.n_iter_)
             batch_data_generator = mini_batch_obj.mini_batch_data_generator()
 
             self.optimizer.set_iters(self.n_iter_)
             if ((self.n_iter_ + 1) % self.aggregate_iters == 0) or self.n_iter_ == max_iter:
-                weight = self.aggregator.aggregate_then_get(model_weights, degree=degree,
-                                                            suffix=self.n_iter_)
+                LOGGER.debug("\nn_iter {}, model_weights{}".format(self.n_iter_,
+                                                                   model_weights.unboxed))
 
+                weight = self.aggregator.aggregate_then_get(model_weights,
+                                                            degree=degree,
+                                                            suffix=self.n_iter_)
+                LOGGER.debug(
+                    "n_iter{}: \nBefore aggregate(enc): {}, degree: {} \nafter aggregated: {}".
+                    format(self.n_iter_, model_weights.unboxed, degree, weight.unboxed))
                 self.model_weights = LogisticRegressionWeights(weight.unboxed, self.fit_intercept)
 
                 # store prev_round_weights after aggregation
                 self.prev_round_weights = copy.deepcopy(self.model_weights)
                 # send loss to arbiter
                 loss = self._compute_loss(data_instances, self.prev_round_weights)
+                LOGGER.debug("\nn_iters:{} before agg loss(local):{}, after agg loss {}".format(
+                    self.n_iter_, local_loss, loss))
+                if self.detect and self.n_iter_ >= 1 and (loss - local_loss > self.detect_tol):
+                    LOGGER.warning("\nniter{}--- may be poisoned---".format(self.n_iter_))
                 self.aggregator.send_loss(loss, degree=degree, suffix=(self.n_iter_,))
                 degree = 0
 
@@ -112,9 +131,13 @@ class HomoLRGuest(HomoLRBase):
                                                                 has_applied=False,
                                                                 prev_round_weights=self.prev_round_weights)
                 else:
-                    model_weights = self.optimizer.update_model(model_weights, grad=grad,
+                    LOGGER.info('\nBefore train weigtht{},iter{}'.format(
+                        model_weights.unboxed, self.n_iter_))
+                    model_weights = self.optimizer.update_model(model_weights,
+                                                                grad=grad,
                                                                 has_applied=False)
-
+                    LOGGER.info('\nAfter train weigtht{},iter{}'.format(
+                        model_weights.unboxed, self.n_iter_))
                 batch_num += 1
                 degree += n
 
