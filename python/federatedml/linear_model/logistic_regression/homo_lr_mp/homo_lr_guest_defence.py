@@ -93,7 +93,7 @@ class HomoLRGuest(HomoLRBase):
                                                             suffix=self.n_iter_)
                 LOGGER.debug(
                     "n_iter{}: \nBefore aggregate(enc): {}, degree: {} \nafter aggregated: {}".
-                    format(self.n_iter_, model_weights.unboxed, degree, weight.unboxed))
+                        format(self.n_iter_, model_weights.unboxed, degree, weight.unboxed))
                 self.model_weights = LogisticRegressionWeights(weight.unboxed, self.fit_intercept)
 
                 # store prev_round_weights after aggregation

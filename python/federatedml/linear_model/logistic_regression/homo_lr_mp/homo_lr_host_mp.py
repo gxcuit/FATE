@@ -36,8 +36,6 @@ from federatedml.util import fate_operator
 from federatedml.util.io_check import assert_io_num_rows_equal
 
 
-
-
 class HomoLRHost(HomoLRBase):
     def __init__(self):
         super(HomoLRHost, self).__init__()
@@ -233,8 +231,8 @@ class HomoLRHost(HomoLRBase):
             # predict_result = predict_result.join(data_instances, lambda p, d: [d.label, p, None,
             #                                                                    {"0": None, "1": None}])
             predict_result = predict_result.join(data_instances, lambda p, d:
-                                                 Instance(features=[d.label, p, None, {"0": None, "1": None}],
-                                                          inst_id=d.inst_id)
+            Instance(features=[d.label, p, None, {"0": None, "1": None}],
+                     inst_id=d.inst_id)
                                                  )
         else:
             pred_prob = data_instances.mapValues(
@@ -242,7 +240,6 @@ class HomoLRHost(HomoLRBase):
                                              + self.model_weights.intercept_))
             predict_result = self.predict_score_to_output(data_instances, pred_prob, classes=[0, 1],
                                                           threshold=self.model_param.predict_param.threshold)
-
 
         return predict_result
 

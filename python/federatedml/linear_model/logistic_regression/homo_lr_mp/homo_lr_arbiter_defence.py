@@ -27,7 +27,7 @@ from numpy.core import overrides
 from federatedml.framework.homo.procedure import aggregator
 from federatedml.framework.homo.procedure import paillier_cipher
 from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights
-from federatedml.linear_model.logistic_regression.homo_logsitic_regression.homo_lr_base import HomoLRBase
+from federatedml.linear_model.logistic_regression.homo_logistic_regression.homo_lr_base import HomoLRBase
 from federatedml.optim import activation
 from federatedml.framework.weights import Weights, NumericWeights, TransferableWeights
 from federatedml.util import fate_operator
@@ -75,7 +75,7 @@ class ArbiterWithDefence(aggregator.Arbiter):
                 if sim.item() < self.detect_tol:
                     LOGGER.warning(
                         '\nat iter {}, weight similarity between {} and {} is {}, lower than tolence{}'
-                        .format(suffix, client_i, client_j, sim.item(), self.detect_tol))
+                            .format(suffix, client_i, client_j, sim.item(), self.detect_tol))
                     abnormal_list.append({client_i, client_j})
                 print("cosine similarity between {} and {} is {}".format(
                     client_i, client_j, sim.item()))
@@ -117,7 +117,7 @@ class ArbiterWithDefence(aggregator.Arbiter):
             if loss - agg_loss > self.detect_tol:
                 LOGGER.warning(
                     "\nAt iter {},may be poisoned by {}, his model loss is {}, the aggregated model loss is {}, the dirrerence is greater than{}"
-                    .format(suffix, client, loss, agg_loss, self.detect_tol))
+                        .format(suffix, client, loss, agg_loss, self.detect_tol))
             print('At iter{}, the loss of model from {} is {}'.format(suffix, client, loss))
         pass
 
@@ -243,7 +243,7 @@ class HomoLRArbiter(HomoLRBase):
             if loss - agg_model_loss > self.detect_tol:
                 LOGGER.warning(
                     "\nAt iter {},may be poisoned by {}, his model loss is {}, the aggregated model loss is {}, the dirrerence is greater than{}"
-                    .format(self.n_iter_, client, loss, agg_model_loss, self.detect_tol))
+                        .format(self.n_iter_, client, loss, agg_model_loss, self.detect_tol))
             print('At iter{}, the loss of model from {} is {}'.format(self.n_iter_, client, loss))
         pass
 
@@ -265,7 +265,7 @@ class HomoLRArbiter(HomoLRBase):
                 if sim.item() < self.detect_tol:
                     LOGGER.warning(
                         '\nat iter {}, weight similarity between {} and {} is {}, lower than tolence{}'
-                        .format(self.n_iter_, client_i, client_j, sim.item(), self.detect_tol))
+                            .format(self.n_iter_, client_i, client_j, sim.item(), self.detect_tol))
                     abnormal_list.append({client_i, client_j})
                 print("cosine similarity between {} and {} is {}".format(
                     client_i, client_j, sim.item()))
