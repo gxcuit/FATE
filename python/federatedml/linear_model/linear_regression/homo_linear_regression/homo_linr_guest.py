@@ -50,7 +50,7 @@ class HomoLRGuest(HomoLRBase):
         self._abnormal_detection(data_instances)
         self.check_abnormal_values(data_instances)
         self.init_schema(data_instances)
-        self._client_check_data(data_instances)
+        # self._client_check_data(data_instances)
 
         self.callback_list.on_train_begin(data_instances, validate_data)
 
@@ -100,7 +100,8 @@ class HomoLRGuest(HomoLRBase):
                                       coef=model_weights.coef_,
                                       intercept=model_weights.intercept_,
                                       fit_intercept=self.fit_intercept)
-                grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
+                # grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
+                grad = self.gradient_operator.compute_linr_gradient(batch_data,model_weights)
                 grad /= n
                 # LOGGER.debug('iter: {}, batch_index: {}, grad: {}, n: {}'.format(
                 #     self.n_iter_, batch_num, grad, n))

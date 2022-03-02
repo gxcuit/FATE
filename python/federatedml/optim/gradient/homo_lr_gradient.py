@@ -18,6 +18,7 @@ import numpy as np
 
 from federatedml.util import LOGGER
 from federatedml.util import fate_operator
+from federatedml.util.fate_operator import vec_dot
 
 
 def load_data(data_instance):
@@ -64,6 +65,12 @@ class LogisticGradient(object):
             grad_batch = np.c_[grad_batch, d]
         grad = sum(grad_batch)
         return grad
+
+    @staticmethod
+    def compute_linr_gradient(data_instances, w):
+        d = data_instances.mapValues(
+            lambda v: vec_dot(v.features, w.coef_) + w.intercept_ - v.label)
+        return d
 
 
 class TaylorLogisticGradient(object):

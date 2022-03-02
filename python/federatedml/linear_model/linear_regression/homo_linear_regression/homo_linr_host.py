@@ -67,7 +67,7 @@ class HomoLRHost(HomoLRBase):
         self.check_abnormal_values(data_instances)
         self.init_schema(data_instances)
         # validation_strategy = self.init_validation_strategy(data_instances, validate_data)
-        self._client_check_data(data_instances)
+        # self._client_check_data(data_instances)
         self.callback_list.on_train_begin(data_instances, validate_data)
 
         pubkey = self.cipher.gen_paillier_pubkey(enable=self.use_encrypt, suffix=('fit',))
@@ -132,7 +132,8 @@ class HomoLRHost(HomoLRBase):
                                       coef=model_weights.coef_,
                                       intercept=model_weights.intercept_,
                                       fit_intercept=self.fit_intercept)
-                grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
+                # grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
+                grad = self.gradient_operator.compute_linr_gradient(batch_data, model_weights)
                 grad /= n
                 if self.use_proximal:  # use additional proximal term
                     model_weights = self.optimizer.update_model(model_weights,
