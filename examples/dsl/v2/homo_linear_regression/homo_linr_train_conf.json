@@ -1,0 +1,80 @@
+{
+    "dsl_version": 2,
+    "initiator": {
+        "role": "guest",
+        "party_id": 9999
+    },
+    "role": {
+        "guest": [
+            9999
+        ],
+        "host": [
+            10000
+        ],
+        "arbiter": [
+            10000
+        ]
+    },
+    "component_parameters": {
+        "common": {
+            "data_transform_0": {
+                "with_label": true,
+                "label_name": "motor_speed",
+                "label_type": "float",
+                "output_format": "dense"
+            },
+            "homo_lr_0": {
+                "penalty": "L2",
+                "tol": 1e-05,
+                "alpha": 0.01,
+                "optimizer": "sgd",
+                "batch_size": -1,
+                "learning_rate": 0.15,
+                "init_param": {
+                    "init_method": "zeros"
+                },
+                "max_iter": 10,
+                "early_stop": "diff",
+                "encrypt_param": {
+                    "method": null
+                },
+                "cv_param": {
+                    "n_splits": 4,
+                    "shuffle": true,
+                    "random_seed": 33,
+                    "need_cv": false
+                },
+                "decay": 0.0,
+                "decay_sqrt": false
+            },
+            "evaluation_0": {
+                "eval_type": "binary"
+            }
+        },
+        "role": {
+            "host": {
+                "0": {
+                    "reader_0": {
+                        "table": {
+                            "name": "motor_homo_full",
+                            "namespace": "experiment"
+                        }
+                    },
+                    "evaluation_0": {
+                        "need_run": false
+                    }
+                }
+            },
+            "guest": {
+                "0": {
+                    "reader_0": {
+                        "table": {
+                            "name": "motor_homo_full",
+                            "namespace": "experiment"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -21,7 +21,8 @@ import functools
 
 from federatedml.framework.homo.procedure import aggregator
 from federatedml.framework.homo.procedure import paillier_cipher
-from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights
+from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights, \
+    LinearModelWeights
 from federatedml.linear_model.logistic_regression.homo_logistic_regression.homo_lr_base import HomoLRBase
 from federatedml.model_selection import MiniBatch
 from federatedml.feature.instance import Instance
@@ -59,6 +60,7 @@ class HomoLRHost(HomoLRBase):
             self.use_encrypt = False
             self.gradient_operator = LogisticGradient()
 
+
     def fit(self, data_instances, validate_data=None):
         self.aggregator = aggregator.Host()
         self.aggregator.register_aggregator(self.transfer_variable)
@@ -70,14 +72,21 @@ class HomoLRHost(HomoLRBase):
         # self._client_check_data(data_instances)
         self.callback_list.on_train_begin(data_instances, validate_data)
 
+
+
         pubkey = self.cipher.gen_paillier_pubkey(enable=self.use_encrypt, suffix=('fit',))
         if self.use_encrypt:
             self.cipher_operator.set_public_key(pubkey)
 
         if not self.component_properties.is_warm_start:
-            self.model_weights = self._init_model_variables(data_instances)
+            # self.model_weights = self._init_model_variables(data_instances)
+            # w = self.cipher_operator.encrypt_list(self.model_weights.unboxed)
+            # self.model_weights = LogisticRegressionWeights(w, self.model_weights.fit_intercept)
+            model_shape = self.get_features_shape(data_instances)
+            w = self.initializer.init_model(model_shape, self.init_param_obj)
+            self.model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept, raise_overflow_error=False)
             w = self.cipher_operator.encrypt_list(self.model_weights.unboxed)
-            self.model_weights = LogisticRegressionWeights(w, self.model_weights.fit_intercept)
+            self.model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept, raise_overflow_error=False)
         else:
             self.callback_warm_start_init_iter(self.n_iter_)
 
@@ -133,8 +142,10 @@ class HomoLRHost(HomoLRBase):
                                       intercept=model_weights.intercept_,
                                       fit_intercept=self.fit_intercept)
                 # grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
-                grad = self.gradient_operator.compute_linr_gradient(batch_data, model_weights)
-                grad /= n
+                d = self.gradient_operator.compute_d(batch_data, model_weights)
+                grad = self.gradient_operator.compute_linr_gredient(batch_data, d, self.fit_intercept)
+                LOGGER.debug("\n----{}, host gradient {}".format(self.n_iter_, grad))
+                print("\n----{}, host gradient {}".format(self.n_iter_, grad))
                 if self.use_proximal:  # use additional proximal term
                     model_weights = self.optimizer.update_model(model_weights,
                                                                 grad=grad,

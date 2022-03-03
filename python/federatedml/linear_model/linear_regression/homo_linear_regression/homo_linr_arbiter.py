@@ -49,7 +49,7 @@ class HomoLRArbiter(HomoLRBase):
         self.aggregator = aggregator.Arbiter()
         self.aggregator.register_aggregator(self.transfer_variable)
 
-        self._server_check_data()
+        # self._server_check_data()
 
         host_ciphers = self.cipher.paillier_keygen(key_length=self.model_param.encrypt_param.key_length,
                                                    suffix=('fit',))

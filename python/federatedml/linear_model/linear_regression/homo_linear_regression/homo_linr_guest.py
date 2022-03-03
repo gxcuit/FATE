@@ -20,7 +20,8 @@ import copy
 import functools
 
 from federatedml.framework.homo.procedure import aggregator
-from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights
+from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights, \
+    LinearModelWeights
 from federatedml.linear_model.logistic_regression.homo_logistic_regression.homo_lr_base import HomoLRBase
 from federatedml.model_selection import MiniBatch
 from federatedml.optim import activation
@@ -42,6 +43,8 @@ class HomoLRGuest(HomoLRBase):
 
     def _init_model(self, params):
         super()._init_model(params)
+        # TODO:
+
 
     def fit(self, data_instances, validate_data=None):
         self.aggregator = aggregator.Guest()
@@ -53,10 +56,12 @@ class HomoLRGuest(HomoLRBase):
         # self._client_check_data(data_instances)
 
         self.callback_list.on_train_begin(data_instances, validate_data)
-
         # validation_strategy = self.init_validation_strategy(data_instances, validate_data)
         if not self.component_properties.is_warm_start:
-            self.model_weights = self._init_model_variables(data_instances)
+            # self.model_weights = self._init_model_variables(data_instances)
+            model_shape = self.get_features_shape(data_instances)
+            w = self.initializer.init_model(model_shape, self.init_param_obj)
+            self.model_weights = LinearModelWeights(w,fit_intercept=self.fit_intercept,raise_overflow_error=False)
         else:
             self.callback_warm_start_init_iter(self.n_iter_)
 
@@ -101,8 +106,12 @@ class HomoLRGuest(HomoLRBase):
                                       intercept=model_weights.intercept_,
                                       fit_intercept=self.fit_intercept)
                 # grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
-                grad = self.gradient_operator.compute_linr_gradient(batch_data,model_weights)
-                grad /= n
+                d = self.gradient_operator.compute_d(batch_data,model_weights)
+                LOGGER.debug("\n----{}, {}".format(self.n_iter_, d.first()))
+                print("\n----{}, {}".format(self.n_iter_, d.first()))
+                grad = self.gradient_operator.compute_linr_gredient(batch_data,d,self.fit_intercept)
+                LOGGER.debug("\n----{}, guest gradient {}".format(self.n_iter_, grad))
+                print("\n----{}, guest gradient {}".format(self.n_iter_, grad))
                 # LOGGER.debug('iter: {}, batch_index: {}, grad: {}, n: {}'.format(
                 #     self.n_iter_, batch_num, grad, n))
 

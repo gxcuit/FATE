@@ -13,12 +13,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+import functools
 
 import numpy as np
+import scipy as sp
 
+from federatedml.feature.sparse_vector import SparseVector
+from federatedml.optim.gradient.hetero_linear_model_gradient import HeteroGradientBase
+from federatedml.statistic import data_overview
 from federatedml.util import LOGGER
 from federatedml.util import fate_operator
 from federatedml.util.fate_operator import vec_dot
+from federatedml.util.fixpoint_solver import FixedPointEncoder
 
 
 def load_data(data_instance):
@@ -67,11 +73,53 @@ class LogisticGradient(object):
         return grad
 
     @staticmethod
-    def compute_linr_gradient(data_instances, w):
+    def compute_d(data_instances, w):
         d = data_instances.mapValues(
             lambda v: vec_dot(v.features, w.coef_) + w.intercept_ - v.label)
         return d
 
+    
+    def compute_linr_gredient(self,data_instances,fore_gradient,fit_intercept):
+        is_sparse = data_overview.is_sparse_data(data_instances)
+        data_count = data_instances.count()
+        fixed_point_encoder = FixedPointEncoder(2 ** 23)
+        feat_join_grad = data_instances.join(fore_gradient,
+                                             lambda d, g: (d.features, g))
+        f = functools.partial(self.__apply_cal_gradient,
+                              fixed_point_encoder=fixed_point_encoder,
+                              is_sparse=is_sparse)
+        gradient_sum = feat_join_grad.applyPartitions(f)
+        gradient_sum = gradient_sum.reduce(lambda x, y: x + y)
+        if fit_intercept:
+            # bias_grad = np.sum(fore_gradient)
+            bias_grad = fore_gradient.reduce(lambda x, y: x + y)
+            gradient_sum = np.append(gradient_sum, bias_grad)
+        gradient = gradient_sum / data_count
+        return gradient
+
+    @staticmethod
+    def __apply_cal_gradient(data, fixed_point_encoder, is_sparse):
+        all_g = None
+        for key, (feature, d) in data:
+            if is_sparse:
+                x = np.zeros(feature.get_shape())
+                for idx, v in feature.get_all_data():
+                    x[idx] = v
+                feature = x
+            if fixed_point_encoder:
+                # g = (feature * 2 ** floating_point_precision).astype("int") * d
+                g = fixed_point_encoder.encode(feature) * d
+            else:
+                g = feature * d
+            if all_g is None:
+                all_g = g
+            else:
+                all_g += g
+        if all_g is None:
+            return all_g
+        elif fixed_point_encoder:
+            all_g = fixed_point_encoder.decode(all_g)
+        return all_g
 
 class TaylorLogisticGradient(object):
 

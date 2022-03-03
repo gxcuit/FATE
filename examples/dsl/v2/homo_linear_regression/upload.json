@@ -1,0 +1,7 @@
+{
+    "file": "/root/standalone_fate_install_1.7.0_release/examples/data/motor_homo_guest.csv",
+    "head": 1,
+    "partition": 16,
+    "table_name": "motor_homo_full",
+    "namespace": "experiment"
+}

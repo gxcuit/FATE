@@ -165,6 +165,7 @@ class HeteroGradientBase(object):
             LOGGER.debug("Use apply partitions")
             feat_join_grad = data_instances.join(fore_gradient,
                                                  lambda d, g: (d.features, g))
+            print("{}".format(feat_join_grad.first()))
             f = functools.partial(self.__apply_cal_gradient,
                                   fixed_point_encoder=self.fixed_point_encoder,
                                   is_sparse=is_sparse)
@@ -219,6 +220,8 @@ class Guest(HeteroGradientBase):
         self.remote_fore_gradient(encrypted_half_d, suffix=current_suffix)
 
         half_g = self.compute_gradient(data_instances, self.half_d, False)
+        LOGGER.debug("\n----{}, self gradient {}".format(current_suffix,half_g))
+        print("\n----{}, self gradient {}".format(current_suffix,half_g))
         self.host_forwards = self.get_host_forward(suffix=current_suffix)
         host_forward = self.host_forwards[0]
         host_half_g = self.compute_gradient(data_instances, host_forward, False)
@@ -260,6 +263,8 @@ class Guest(HeteroGradientBase):
         # Compute Guest's partial d
         self.compute_half_d(data_instances, model_weights, encrypted_calculator,
                             batch_index, current_suffix)
+        LOGGER.debug("\n----{}, {}".format(n_iter_,self.half_d.first()))
+        print("\n----{}, {}".format(n_iter_,self.half_d.first()))
         if self.use_async:
             unilateral_gradient = self._asynchronous_compute_gradient(data_instances, model_weights,
                                                                       cipher=encrypted_calculator[batch_index],
