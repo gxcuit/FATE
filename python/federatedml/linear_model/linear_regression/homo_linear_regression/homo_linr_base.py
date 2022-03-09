@@ -32,11 +32,13 @@ from federatedml.transfer_variable.transfer_class.homo_lr_transfer_variable impo
 from federatedml.util import LOGGER
 from federatedml.util import consts
 from federatedml.util import fate_operator
+from federatedml.util.fate_operator import reduce_add, vec_dot
+import numpy as np
 
 
-class HomoLRBase(BaseLogisticRegression):
+class HomoLinRBase(BaseLogisticRegression):
     def __init__(self):
-        super(HomoLRBase, self).__init__()
+        super(HomoLinRBase, self).__init__()
         self.model_name = 'HomoLogisticRegression'
         self.model_param_name = 'HomoLogisticRegressionParam'
         self.model_meta_name = 'HomoLogisticRegressionMeta'
@@ -45,7 +47,7 @@ class HomoLRBase(BaseLogisticRegression):
         self.aggregator = None
 
     def _init_model(self, params):
-        super(HomoLRBase, self)._init_model(params)
+        super(HomoLinRBase, self)._init_model(params)
         self.re_encrypt_batches = params.re_encrypt_batches
 
         if params.encrypt_param.method == consts.PAILLIER:
@@ -98,19 +100,18 @@ class HomoLRBase(BaseLogisticRegression):
 
     def _init_model_variables(self, data_instances):
         model_shape = data_overview.get_features_shape(data_instances)
-
-        LOGGER.info("Initialized model shape is {}".format(model_shape))
-
-        w = self.initializer.init_model(model_shape, init_params=self.init_param_obj,
-                                        data_instance=data_instances)
-        model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept)
+        w = self.initializer.init_model(model_shape, self.init_param_obj)
+        model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept,raise_overflow_error=False)
         return model_weights
 
     def _compute_loss(self, data_instances, prev_round_weights):
-        f = functools.partial(self.gradient_operator.compute_loss,
-                              coef=self.model_weights.coef_,
-                              intercept=self.model_weights.intercept_)
-        loss = data_instances.applyPartitions(f).reduce(fate_operator.reduce_add)
+        # f = functools.partial(self.gradient_operator.compute_loss,
+        #                       coef=self.model_weights.coef_,
+        #                       intercept=self.model_weights.intercept_)
+        # loss = data_instances.applyPartitions(f).reduce(fate_operator.reduce_add)
+        loss = data_instances.mapValues(
+            lambda v: np.square( vec_dot(v.features, prev_round_weights.coef_) + prev_round_weights.intercept_ - v.label)).reduce(reduce_add)
+
         if self.use_proximal:  # use additional proximal term
             loss_norm = self.optimizer.loss_norm(self.model_weights,
                                                  prev_round_weights)

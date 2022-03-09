@@ -23,7 +23,7 @@
                 "label_type": "float",
                 "output_format": "dense"
             },
-            "homo_lr_0": {
+            "homo_linr_0": {
                 "penalty": "L2",
                 "tol": 1e-05,
                 "alpha": 0.01,
@@ -46,9 +46,6 @@
                 },
                 "decay": 0.0,
                 "decay_sqrt": false
-            },
-            "evaluation_0": {
-                "eval_type": "binary"
             }
         },
         "role": {

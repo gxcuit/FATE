@@ -23,10 +23,12 @@ from federatedml.framework.homo.procedure import aggregator
 from federatedml.framework.homo.procedure import paillier_cipher
 from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights, \
     LinearModelWeights
+from federatedml.linear_model.linear_regression.homo_linear_regression.homo_linr_base import HomoLinRBase
 from federatedml.linear_model.logistic_regression.homo_logistic_regression.homo_lr_base import HomoLRBase
 from federatedml.model_selection import MiniBatch
 from federatedml.feature.instance import Instance
 from federatedml.optim import activation
+from federatedml.optim.gradient.homo_linr_gradient import LinearGradient
 from federatedml.util.fate_operator import vec_dot
 from federatedml.optim.gradient.homo_lr_gradient import LogisticGradient, TaylorLogisticGradient
 from federatedml.protobuf.generated import lr_model_param_pb2
@@ -36,7 +38,7 @@ from federatedml.util import fate_operator
 from federatedml.util.io_check import assert_io_num_rows_equal
 
 
-class HomoLRHost(HomoLRBase):
+class HomoLRHost(HomoLinRBase):
     def __init__(self):
         super(HomoLRHost, self).__init__()
         self.gradient_operator = None
@@ -58,7 +60,7 @@ class HomoLRHost(HomoLRBase):
             self.re_encrypt_batches = params.re_encrypt_batches
         else:
             self.use_encrypt = False
-            self.gradient_operator = LogisticGradient()
+            self.gradient_operator = LinearGradient()
 
 
     def fit(self, data_instances, validate_data=None):
@@ -79,14 +81,14 @@ class HomoLRHost(HomoLRBase):
             self.cipher_operator.set_public_key(pubkey)
 
         if not self.component_properties.is_warm_start:
-            # self.model_weights = self._init_model_variables(data_instances)
+            self.model_weights = self._init_model_variables(data_instances)
             # w = self.cipher_operator.encrypt_list(self.model_weights.unboxed)
             # self.model_weights = LogisticRegressionWeights(w, self.model_weights.fit_intercept)
-            model_shape = self.get_features_shape(data_instances)
-            w = self.initializer.init_model(model_shape, self.init_param_obj)
-            self.model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept, raise_overflow_error=False)
-            w = self.cipher_operator.encrypt_list(self.model_weights.unboxed)
-            self.model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept, raise_overflow_error=False)
+            # model_shape = self.get_features_shape(data_instances)
+            # w = self.initializer.init_model(model_shape, self.init_param_obj)
+            # self.model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept, raise_overflow_error=False)
+            # w = self.cipher_operator.encrypt_list(self.model_weights.unboxed)
+            # self.model_weights = LinearModelWeights(w, fit_intercept=self.fit_intercept, raise_overflow_error=False)
         else:
             self.callback_warm_start_init_iter(self.n_iter_)
 
@@ -112,7 +114,7 @@ class HomoLRHost(HomoLRBase):
             self.callback_list.on_epoch_begin(self.n_iter_)
 
             batch_data_generator = mini_batch_obj.mini_batch_data_generator()
-
+            self.optimizer.set_iters(self.n_iter_)
             if ((self.n_iter_ + 1) % self.aggregate_iters == 0) or self.n_iter_ == self.max_iter:
                 weight = self.aggregator.aggregate_then_get(model_weights, degree=degree,
                                                             suffix=self.n_iter_)

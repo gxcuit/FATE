@@ -22,9 +22,10 @@ import functools
 from federatedml.framework.homo.procedure import aggregator
 from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights, \
     LinearModelWeights
-from federatedml.linear_model.logistic_regression.homo_logistic_regression.homo_lr_base import HomoLRBase
+from federatedml.linear_model.linear_regression.homo_linear_regression.homo_linr_base import HomoLinRBase
 from federatedml.model_selection import MiniBatch
 from federatedml.optim import activation
+from federatedml.optim.gradient.homo_linr_gradient import LinearGradient
 from federatedml.optim.gradient.homo_lr_gradient import LogisticGradient
 from federatedml.util import LOGGER
 from federatedml.util import consts
@@ -33,10 +34,10 @@ from federatedml.util.fate_operator import vec_dot
 from federatedml.util.io_check import assert_io_num_rows_equal
 
 
-class HomoLRGuest(HomoLRBase):
+class HomoLRGuest(HomoLinRBase):
     def __init__(self):
         super(HomoLRGuest, self).__init__()
-        self.gradient_operator = LogisticGradient()
+        self.gradient_operator = LinearGradient()
         self.loss_history = []
         self.role = consts.GUEST
         # self.aggregator = aggregator.Guest()
@@ -58,10 +59,10 @@ class HomoLRGuest(HomoLRBase):
         self.callback_list.on_train_begin(data_instances, validate_data)
         # validation_strategy = self.init_validation_strategy(data_instances, validate_data)
         if not self.component_properties.is_warm_start:
-            # self.model_weights = self._init_model_variables(data_instances)
-            model_shape = self.get_features_shape(data_instances)
-            w = self.initializer.init_model(model_shape, self.init_param_obj)
-            self.model_weights = LinearModelWeights(w,fit_intercept=self.fit_intercept,raise_overflow_error=False)
+            self.model_weights = self._init_model_variables(data_instances)
+            # model_shape = self.get_features_shape(data_instances)
+            # w = self.initializer.init_model(model_shape, self.init_param_obj)
+            # self.model_weights = LinearModelWeights(w,fit_intercept=self.fit_intercept,raise_overflow_error=False)
         else:
             self.callback_warm_start_init_iter(self.n_iter_)
 
