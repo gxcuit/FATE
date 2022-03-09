@@ -20,7 +20,7 @@ import copy
 import functools
 
 from federatedml.framework.homo.procedure import aggregator
-from federatedml.linear_model.linear_model_weight import LinearModelWeights as LogisticRegressionWeights, \
+from federatedml.linear_model.linear_model_weight import LinearModelWeights as LinearRegressionWeights, \
     LinearModelWeights
 from federatedml.linear_model.linear_regression.homo_linear_regression.homo_linr_base import HomoLinRBase
 from federatedml.model_selection import MiniBatch
@@ -60,9 +60,6 @@ class HomoLRGuest(HomoLinRBase):
         # validation_strategy = self.init_validation_strategy(data_instances, validate_data)
         if not self.component_properties.is_warm_start:
             self.model_weights = self._init_model_variables(data_instances)
-            # model_shape = self.get_features_shape(data_instances)
-            # w = self.initializer.init_model(model_shape, self.init_param_obj)
-            # self.model_weights = LinearModelWeights(w,fit_intercept=self.fit_intercept,raise_overflow_error=False)
         else:
             self.callback_warm_start_init_iter(self.n_iter_)
 
@@ -83,12 +80,14 @@ class HomoLRGuest(HomoLinRBase):
                 weight = self.aggregator.aggregate_then_get(model_weights, degree=degree,
                                                             suffix=self.n_iter_)
 
-                self.model_weights = LogisticRegressionWeights(weight.unboxed, self.fit_intercept)
+                self.model_weights = LinearRegressionWeights(weight.unboxed, self.fit_intercept)
 
                 # store prev_round_weights after aggregation
                 self.prev_round_weights = copy.deepcopy(self.model_weights)
                 # send loss to arbiter
                 loss = self._compute_loss(data_instances, self.prev_round_weights)
+                self.callback_loss(self.n_iter_, loss)
+                self.loss_history.append(loss)
                 self.aggregator.send_loss(loss, degree=degree, suffix=(self.n_iter_,))
                 degree = 0
 
@@ -101,15 +100,10 @@ class HomoLRGuest(HomoLinRBase):
             batch_num = 0
             for batch_data in batch_data_generator:
                 n = batch_data.count()
-                # LOGGER.debug("In each batch, lr_weight: {}, batch_data count: {}".format(model_weights.unboxed, n))
-                f = functools.partial(self.gradient_operator.compute_gradient,
-                                      coef=model_weights.coef_,
-                                      intercept=model_weights.intercept_,
-                                      fit_intercept=self.fit_intercept)
-                # grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
+
                 d = self.gradient_operator.compute_d(batch_data,model_weights)
-                LOGGER.debug("\n----{}, {}".format(self.n_iter_, d.first()))
-                print("\n----{}, {}".format(self.n_iter_, d.first()))
+                LOGGER.debug("\n----d {}, {}".format(self.n_iter_, d.first()))
+                print("\n----d {}, {}".format(self.n_iter_, d.first()))
                 grad = self.gradient_operator.compute_linr_gredient(batch_data,d,self.fit_intercept)
                 LOGGER.debug("\n----{}, guest gradient {}".format(self.n_iter_, grad))
                 print("\n----{}, guest gradient {}".format(self.n_iter_, grad))
@@ -143,9 +137,6 @@ class HomoLRGuest(HomoLinRBase):
         self.init_schema(data_instances)
 
         data_instances = self.align_data_header(data_instances, self.header)
-        # predict_wx = self.compute_wx(data_instances, self.model_weights.coef_, self.model_weights.intercept_)
-        pred_prob = data_instances.mapValues(lambda v: activation.sigmoid(vec_dot(v.features, self.model_weights.coef_)
-                                                                          + self.model_weights.intercept_))
         pred = self.compute_wx(data_instances, self.model_weights.coef_, self.model_weights.intercept_)
         predict_result = self.predict_score_to_output(data_instances=data_instances, predict_score=pred, classes=None)
 

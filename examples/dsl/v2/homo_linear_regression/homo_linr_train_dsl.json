@@ -43,6 +43,21 @@
                     "model"
                 ]
             }
+        },
+        "evaluation_0": {
+            "module": "Evaluation",
+            "input": {
+                "data": {
+                    "data": [
+                        "homo_linr_0.data"
+                    ]
+                }
+            },
+            "output": {
+                "data": [
+                    "data"
+                ]
+            }
         }
     }
 }

@@ -105,10 +105,6 @@ class HomoLinRBase(BaseLogisticRegression):
         return model_weights
 
     def _compute_loss(self, data_instances, prev_round_weights):
-        # f = functools.partial(self.gradient_operator.compute_loss,
-        #                       coef=self.model_weights.coef_,
-        #                       intercept=self.model_weights.intercept_)
-        # loss = data_instances.applyPartitions(f).reduce(fate_operator.reduce_add)
         loss = data_instances.mapValues(
             lambda v: np.square( vec_dot(v.features, prev_round_weights.coef_) + prev_round_weights.intercept_ - v.label)).reduce(reduce_add)
 

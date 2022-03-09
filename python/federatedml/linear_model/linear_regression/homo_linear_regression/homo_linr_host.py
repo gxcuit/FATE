@@ -139,11 +139,6 @@ class HomoLRHost(HomoLinRBase):
                 n = batch_data.count()
                 degree += n
                 LOGGER.debug('before compute_gradient')
-                f = functools.partial(self.gradient_operator.compute_gradient,
-                                      coef=model_weights.coef_,
-                                      intercept=model_weights.intercept_,
-                                      fit_intercept=self.fit_intercept)
-                # grad = batch_data.applyPartitions(f).reduce(fate_operator.reduce_add)
                 d = self.gradient_operator.compute_d(batch_data, model_weights)
                 grad = self.gradient_operator.compute_linr_gredient(batch_data, d, self.fit_intercept)
                 LOGGER.debug("\n----{}, host gradient {}".format(self.n_iter_, grad))
@@ -207,6 +202,7 @@ class HomoLRHost(HomoLinRBase):
                 raise ValueError(f"In use_encrypt case, arbiter should be set")
             pubkey = None
         if self.use_encrypt:
+            raise ValueError(f"HomoLinR does not support predict in encrypted mode")
             self.cipher_operator.set_public_key(pubkey)
 
             final_model = self.transfer_variable.aggregated_model.get(idx=0, suffix=suffix)
@@ -221,11 +217,9 @@ class HomoLRHost(HomoLinRBase):
                                                           inst_id=d.inst_id)
                                                  )
         else:
-            pred_prob = data_instances.mapValues(
-                lambda v: activation.sigmoid(vec_dot(v.features, self.model_weights.coef_)
-                                             + self.model_weights.intercept_))
-            predict_result = self.predict_score_to_output(data_instances, pred_prob, classes=[0, 1],
-                                                          threshold=self.model_param.predict_param.threshold)
+            pred = self.compute_wx(data_instances, self.model_weights.coef_, self.model_weights.intercept_)
+            predict_result = self.predict_score_to_output(data_instances=data_instances, predict_score=pred,
+                                                          classes=None)
 
 
         return predict_result

@@ -48,33 +48,6 @@ def load_data(data_instance):
 class LinearGradient(object):
 
     @staticmethod
-    def compute_loss(values, coef, intercept):
-        X, Y = load_data(values)
-        batch_size = len(X)
-        if batch_size == 0:
-            LOGGER.warning("This partition got 0 data")
-            return None
-        tot_loss = np.log(1 + np.exp(np.multiply(-Y.transpose(), X.dot(coef) + intercept))).sum()
-        # loss = values.mapValues(
-        #     lambda v: vec_dot(v.features, coef) + intercept - v.label)
-        return tot_loss
-
-    @staticmethod
-    def compute_gradient(values, coef, intercept, fit_intercept):
-        X, Y = load_data(values)
-        batch_size = len(X)
-        if batch_size == 0:
-            LOGGER.warning("This partition got 0 data")
-            return None
-
-        d = (1.0 / (1 + np.exp(-np.multiply(Y.transpose(), X.dot(coef) + intercept))) - 1).transpose() * Y
-        grad_batch = d * X
-        if fit_intercept:
-            grad_batch = np.c_[grad_batch, d]
-        grad = sum(grad_batch)
-        return grad
-
-    @staticmethod
     def compute_d(data_instances, w):
         d = data_instances.mapValues(
             lambda v: vec_dot(v.features, w.coef_) + w.intercept_ - v.label)
@@ -84,11 +57,10 @@ class LinearGradient(object):
     def compute_linr_gredient(self,data_instances,fore_gradient,fit_intercept):
         is_sparse = data_overview.is_sparse_data(data_instances)
         data_count = data_instances.count()
-        fixed_point_encoder = FixedPointEncoder(2 ** 23)
         feat_join_grad = data_instances.join(fore_gradient,
                                              lambda d, g: (d.features, g))
         f = functools.partial(self.__apply_cal_gradient,
-                              fixed_point_encoder=fixed_point_encoder,
+                              fixed_point_encoder=False,
                               is_sparse=is_sparse)
         gradient_sum = feat_join_grad.applyPartitions(f)
         gradient_sum = gradient_sum.reduce(lambda x, y: x + y)
