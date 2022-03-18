@@ -142,6 +142,19 @@ class HomoLRGuest(HomoLRBase):
                 degree += n
 
             # validation_strategy.validate(self, self.n_iter_)
+            f_loss = functools.partial(self.gradient_operator.compute_loss,
+                                       coef=model_weights.coef_,
+                                       intercept=model_weights.intercept_)
+            local_loss = data_instances.applyPartitions(f_loss).reduce(fate_operator.reduce_add)
+            if self.use_proximal:  # use additional proximal term
+                loss_norm = self.optimizer.loss_norm(model_weights, self.prev_round_weights)
+            else:
+                loss_norm = self.optimizer.loss_norm(model_weights)
+            if loss_norm is not None:
+                local_loss += loss_norm
+            local_loss /= data_instances.count()
+            LOGGER.debug("\nn_iter:{},local loss:{}".format(self.n_iter_, local_loss))
+
             self.callback_list.on_epoch_end(self.n_iter_)
             self.n_iter_ += 1
 
