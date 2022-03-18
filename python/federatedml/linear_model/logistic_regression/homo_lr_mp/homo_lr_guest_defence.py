@@ -102,7 +102,8 @@ class HomoLRGuest(HomoLRBase):
                 loss = self._compute_loss(data_instances, self.prev_round_weights)
                 LOGGER.debug("\nn_iters:{} before agg loss(local):{}, after agg loss {}".format(
                     self.n_iter_, local_loss, loss))
-                if self.detect and self.n_iter_ >= 1 and (loss - local_loss > self.detect_tol):
+                detect_tol = self.detect_tol / (1 + self.n_iter_)
+                if self.detect and self.n_iter_ >= 1 and (loss - local_loss > detect_tol):
                     LOGGER.warning("\nniter{}--- may be poisoned---".format(self.n_iter_))
                 self.aggregator.send_loss(loss, degree=degree, suffix=(self.n_iter_,))
                 degree = 0
