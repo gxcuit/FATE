@@ -16,6 +16,7 @@ To develop a component, the following 6 steps are needed.
 4.  define your component which should inherit `model_base` class.
 5.  Define the protobuf file required for model saving.
 6.  (optional) define Pipeline component for your component.
+7.  (optional) restart fate_flow_server.
 
 In the following sections we will describe the 6 steps in detail, with
 `hetero_lr`.
@@ -388,6 +389,12 @@ To define a Pipeline component, follow these guidelines:
 Then you may use Pipeline to construct and initiate a job with the newly
 defined component. For guide on Pipeline usage, please refer to
 [fate_client/pipeline](../api/fate_client/pipeline.md).
+
+### Step 7. Restart Fate-Flow server(if necessary)
+
+Once developed a new algorithm component, the fate-flow server needs to be restarted. Otherwise, it will get an error when submitting the job. Note: fate-flow supports debug mode since V1.7.  If the fate-flow runs in the debug mode, this step can be omitted.  Executing `python fate_flow_server.py --debug` can enable the debug mode.
+
+
 
 ## Start a modeling task
 

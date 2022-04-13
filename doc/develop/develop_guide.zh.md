@@ -12,6 +12,7 @@
 4.  您的算法模块需要继承`model_base`类，并完成几个指定的函数。
 5.  定义模型保存所需的protobuf文件。
 6.  若希望通过python脚本直接启动组件，需要在`fate_client`中定义Pipeline组件。
+7.  如果需要，重启fate_flow_server。
 
 在以下各节中，我们将通过 `hetero_lr` 详细描述这 6 个步骤。
 
@@ -337,6 +338,10 @@ def export_model(self):
 [`python/fate_client/pipeline/component`](../../python/fate_client/pipeline/component)
 中添加自己的组件。详情请参考Pipeline的
 [文档](../api/fate_client/pipeline.md)
+
+### 第七步：如果需要，重启Fate-Flow server
+
+在开发完新的组件后，需要重启Fate-Flow server，否则提交任务的时候会报错。需要注意的是：自从fate-flow V1.7开始，fate-flow支持debug模式。如果用户开启debug模式，这一步可以省略。通过执行`python fate_flow_server.py --debug` 可开启debug模式。
 
 ## 开始建模任务
 
