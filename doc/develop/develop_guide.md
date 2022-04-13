@@ -16,6 +16,7 @@ To develop a component, the following 6 steps are needed.
 4.  define your component which should inherit `model_base` class.
 5.  Define the protobuf file required for model saving.
 6.  (optional) define Pipeline component for your component.
+6.  (optional) restart fate_flow_server.
 
 In the following sections we will describe the 6 steps in detail, with
 `hetero_lr`.
@@ -128,17 +129,17 @@ this file to get the information on  how to start program of the component.
 2.  Developing the meta file. 
     
       - inherit from ComponentMeta, and name meta with component's name, 
-      like xxx_cpn_meta = ComponentMeta("XXX"). XXX is the module to be used in dsl file.  
-        
+        like xxx_cpn_meta = ComponentMeta("XXX"). XXX is the module to be used in dsl file.  
+            
         ```python
           from .components import ComponentMeta
           hetero_lr_cpn_meta = ComponentMeta("HeteroLR")
-        ``` 
+        ```
       - use the decorator `xxx_cpn_meta.bind_runner.on_$role` to bind the running object to each role.  
         $role mainly includes `guest`, `host` and `arbiter`. If component uses the same running module for several roles, syntax like 
         `xxx_cpn_meta.bind_runner.on_$role1.on_$role2.on_$role3` is also supported.   
         This function imports and returns the running object of corresponding role.  
-  
+    
         Take hetero-lr as an example, users can find it in
         [python/federatedml/components/hetero_lr.py](../../python/federatedml/components/hetero_lr.py)
       
@@ -154,7 +155,7 @@ this file to get the information on  how to start program of the component.
             from federatedml.linear_model.logistic_regression.hetero_logistic_regression.hetero_lr_host import HeteroLRHost
             
             return HeteroLRHost
-        ``` 
+        ```
       - use the decorator `xxx_cpn_meta.bind_param` to bind the parameter object to the developing component, which defines in Step 1.  
         The function imports and returns the parameter object.  
         
@@ -164,7 +165,7 @@ this file to get the information on  how to start program of the component.
             from federatedml.param.logistic_regression_param import HeteroLogisticParam
             
             return HeteroLogisticParam
-        ``` 
+        ```
         
 ### Step 3. Define the transfer variable object of this module. (Optional)
 
@@ -263,7 +264,7 @@ provided in
     following format:
     
     - for binary, multi-class classification task and regression task, result header should be: ["label", "predict_result", "predict_score", "predict_detail", "type"]
-       
+      
       - `label`: Provided label
       - `predict_result`: Your predict result.
       - `predict_score`: For binary classification task, it is the score of label "1".
@@ -277,13 +278,13 @@ provided in
   - There are two Table return in clustering task.  
     
     The format of first Table: ["cluster_sample_count", "cluster_inner_dist", "inter_cluster_dist"]
-      
+    
       - `cluster_sample_count`: The sample count of each cluster.
       - `cluster_inner_dist`: The inner distance of each cluster.
       - `inter_cluster_dist`: The inter distance between each clusters.
-      
+    
     The format of second Table:["predicted_cluster_index", "distance"]
-      
+    
       - `predicted_cluster_index`: Your predict label
       - `distance`: The distance between each sample to its center point.
 
@@ -325,7 +326,7 @@ After defining your proto files, you can use the following script named
 [generate\_py.sh](../../python/fate_arch/protobuf/generate_py.sh) to create
 the corresponding python file:
 
- 
+
 ```bash
 bash generate_py.sh
 ```
@@ -370,6 +371,12 @@ Then you may use Pipeline to construct and initiate a job with the newly
 defined component. For guide on Pipeline usage, please refer to
 [fate_client/pipeline](../api/fate_client/pipeline.md).
 
+
+
+### Step 7. Restart Fate-Flow server(if necessary)
+
+Once developed a new algorithm component, the fate-flow server needs to be restarted. Otherwise, it will get an error when submitting the job. Note: fate-flow supports debug mode since V1.7.  If the fate-flow runs in the debug mode, this step can be omitted.  Executing `python fate_flow_server.py --debug` can enable the debug mode.
+
 ## Start a modeling task
 
 After finished developing, here is a simple example for starting a
@@ -384,11 +391,11 @@ prepared. Then run the following command:
 ```bash
 flow data upload -c upload_data.json
 ```
-    
+
 !!!Note
     
     This step is needed for every data-provide node(i.e. Guest and Host).
-    
+
 
 ### 2. Start your modeling task  
 

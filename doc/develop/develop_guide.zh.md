@@ -12,6 +12,7 @@
 4.  您的算法模块需要继承`model_base`类，并完成几个指定的函数。
 5.  定义模型保存所需的protobuf文件。
 6.  若希望通过python脚本直接启动组件，需要在`fate_client`中定义Pipeline组件。
+6.  如果需要，重启fate_flow_server。
 
 在以下各节中，我们将通过 `hetero_lr` 详细描述这 6 个步骤。
 
@@ -113,20 +114,20 @@ def check(self):
     中定义名为 xxx.py 的meta文件，其中 xxx 是您要开发的模块。
     
 2.  配置 meta 文件。
-      
+    
       - 继承 ComponentMeta, 用模块名为其命名, 例如 xxx_cpn_meta = ComponentMeta("XXX"). XXX 即在 dsl 中调用的模块名。
         ```python
             from .components import ComponentMeta
             hetero_lr_cpn_meta = ComponentMeta("HeteroLR")
-        ``` 
+        ```
       
       - 使用装饰器 `xxx_cpn_meta.bind_runner.on_$role`将模块object绑定至每个角色。
           $role 包括 guest\host\arbiter. 如果多个角色使用同一模块object，可以使用 `xxx_cpn_meta.bind_runner.on_$role1.on_$role2.on_$role3` 格式注明。 
           装饰器方程将引入并返回对应角色的模块object。
-   
+      
           以hetero-lr 为例：
           [python/federatedml/components/hetero_lr.py](../../python/federatedml/components/hetero_lr.py)
-        
+            
           ```python
               @hetero_lr_cpn_meta.bind_runner.on_guest
               def hetero_lr_runner_guest():
@@ -139,18 +140,18 @@ def check(self):
                   from federatedml.linear_model.logistic_regression.hetero_logistic_regression.hetero_lr_host import HeteroLRHost
                   
                   return HeteroLRHost
-          ``` 
+          ```
         
       - 使用装饰器 `xxx_cpn_meta.bind_param` 将参数object绑定至step1中定义的开发组件，
-      装饰器将返回对应参数object。
-        
+        装饰器将返回对应参数object。
+            
         ```python
             @hetero_lr_cpn_meta.bind_param
             def hetero_lr_param():
                 from federatedml.param.logistic_regression_param import HeteroLogisticParam
                 
                 return HeteroLogisticParam
-        ``` 
+        ```
 
 ### 第三步：定义此模块的传递变量py文件并生成传递变量对象（可选）
 
@@ -220,7 +221,7 @@ class HeteroLRTransferVariable(BaseTransferVariables):
   - 在需要时重载 fit 接口  
     
       fit 函数具有以下形式。
-    
+        
       ```python
       def fit(self, train_data, validate_data=None):
       ```
@@ -228,15 +229,15 @@ class HeteroLRTransferVariable(BaseTransferVariables):
       fit函数是启动建模组件的训练，或者特征工程组件的fit功能的入口。接受训练数据和验证集数据，validate数据可不提供。该函数在用户启动训练任务时，被`model_base`自动调起，您只需在该函数完成自身需要的fit任务即可。
 
   - 在需要的时候重载 predict 接口  
-      
-      predict 函数具有如下形式.
     
+      predict 函数具有如下形式.
+        
       ```python
       def predict(self, data_inst):
       ```
     
       `data_inst` 是一个 Table， 用于建模组件的预测功能。在用户启动预测任务时，将被`model_base`自动调起。 另外，在训练任务中，建模组件也会调用`predict`函数对训练数据和验证集数据（如果有）进行预测，并输出预测结果。该函数的返回结果，如果后续希望接入`evaluation`，需要输出符合下列格式的Table：
-    
+        
       - 二分类，多分类，回归任务返回一张表
             表的格式为: ["label", "predict_result", "predict_score", "predict_detail", "type"]
         
@@ -253,16 +254,16 @@ class HeteroLRTransferVariable(BaseTransferVariables):
             - `cluster_sample_count`: 每个类别下的样本个数
             - `cluster_inner_dist`: 类内距离
             - `inter_cluster_dist`: 类间距离
-        
+            
             第二张表的格式为: `["predicted_cluster_index", "distance"]`
             
             - `predicted_cluster_index`: 预测的所属类别
             - `distance`: 该样本到中心点的距离
 
   - 在需要的时候重载 `transform` 接口  
-      
-      transform 函数具有如下形式.
     
+      transform 函数具有如下形式.
+        
       ```python
       def transform(self, data_inst):
       ```
@@ -298,7 +299,7 @@ bash proto_generate.sh
 ```
 
 #### 定义 `export_model` 接口  
-    
+
 以便 fate-flow 可以在需要时通过它获取输出的模型。应为同时包含 “Meta” 和 “Param” 包含了产生的proto buffer类的 dict 格式。这里展示了如何导出模型。
     
 ```python
@@ -318,6 +319,10 @@ def export_model(self):
 [`python/fate_client/pipeline/component`](../../python/fate_client/pipeline/component)
 中添加自己的组件。详情请参考Pipeline的
 [文档](../api/fate_client/pipeline.md)
+
+### 第七步：如果需要，重启Fate-Flow server
+
+在开发完新的组件后，需要重启Fate-Flow server，否则提交任务的时候会报错。需要注意的是：自从fate-flow V1.7开始，fate-flow支持debug模式。如果用户开启debug模式，这一步可以省略。通过执行`python fate_flow_server.py --debug` 可开启debug模式。
 
 ## 开始建模任务
 
