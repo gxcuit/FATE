@@ -40,6 +40,7 @@ class HomoLRGuest(HomoLRBase):
         self.loss_history = []
         self.role = consts.GUEST
         self.model_param = PoisonParam()
+        self.poison_history = []
         # self.aggregator = aggregator.Guest()
 
     def _init_model(self, params):
@@ -53,6 +54,23 @@ class HomoLRGuest(HomoLRBase):
                 self.detect_rule))
             raise ValueError('detect rule in Guest only supports loss, but get {}'.format(
                 self.detect_rule))
+
+    # override model_summary
+    def get_model_summary(self):
+        header = self.header
+        if header is None:
+            return {}
+        weight_dict, intercept_ = self.get_weight_intercept_dict(header)
+
+        summary = {"coef": weight_dict,
+                   "intercept": intercept_,
+                   "is_converged": self.is_converged,
+                   "is_poisoned": True if len(self.poison_history) > 0 else False,
+                   "best_iteration": self.callback_variables.best_iteration}
+
+        if self.callback_variables.validation_summary is not None:
+            summary["validation_metrics"] = self.callback_variables.validation_summary
+        return summary
 
     def fit(self, data_instances, validate_data=None):
         self.aggregator = aggregator.Guest()
@@ -105,6 +123,7 @@ class HomoLRGuest(HomoLRBase):
                 detect_tol = self.detect_tol / (1 + self.n_iter_)
                 if self.detect and self.n_iter_ >= 1 and (loss - local_loss > detect_tol):
                     LOGGER.warning("\nniter{}--- may be poisoned---".format(self.n_iter_))
+                    self.poison_history.append(self.n_iter_)
                 self.aggregator.send_loss(loss, degree=degree, suffix=(self.n_iter_,))
                 degree = 0
 
