@@ -22,9 +22,9 @@ homo_nn_cpn_meta = ComponentMeta("HomoNNMP")
 
 @homo_nn_cpn_meta.bind_param
 def homo_nn_param():
-    from federatedml.param.homo_nn_param import HomoNNParam
+    from federatedml.param.homo_nn_mp_param import  HomoNNMPParam
 
-    return HomoNNParam
+    return HomoNNMPParam
 
 
 @homo_nn_cpn_meta.bind_runner.on_guest.on_host

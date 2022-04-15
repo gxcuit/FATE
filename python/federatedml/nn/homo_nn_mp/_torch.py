@@ -34,7 +34,7 @@ from federatedml.nn.backend.pytorch.layer import get_layer_fn
 from federatedml.nn.backend.pytorch.loss import get_loss_fn
 from federatedml.nn.backend.pytorch.optimizer import get_optimizer
 from federatedml.nn.homo_nn import _consts
-from federatedml.param import HomoNNParam
+from federatedml.param.homo_nn_mp_param import HomoNNMPParam
 from federatedml.protobuf.generated import nn_model_meta_pb2, nn_model_param_pb2
 from federatedml.util import LOGGER
 from federatedml.util.homo_label_encoder import HomoLabelEncoderArbiter
@@ -501,7 +501,7 @@ def make_predict_dataset(data, trainer: PyTorchFederatedTrainer):
     )
 
 
-def build_trainer(param: HomoNNParam, data, should_label_align=True, trainer=None):
+def build_trainer(param: HomoNNMPParam, data, should_label_align=True, trainer=None):
     header = data.schema["header"]
     if trainer is None:
         total_epoch = param.aggregate_every_n_epoch * param.max_iter
@@ -612,7 +612,7 @@ class PytorchFederatedAggregator(object):
         LOGGER.info(f"label aligned, mapping: {label_mapping}")
 
 
-def build_aggregator(param: HomoNNParam, init_iteration=0):
+def build_aggregator(param: HomoNNMPParam, init_iteration=0):
     context = PyTorchSAServerContext(
         max_num_aggregation=param.max_iter, eps=param.early_stop.eps
     )

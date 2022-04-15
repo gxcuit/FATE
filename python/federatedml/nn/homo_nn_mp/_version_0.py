@@ -183,7 +183,7 @@ def client_fit(self, data_inst):
         # send model for aggregate, then set aggregated model to local
 
         # only host poison
-        if self.role == "host":
+        if self.role == "host" and self.poison:
             LOGGER.info("\n---iter:{}, role:{}, before poison weight {}".format(self.aggregate_iteration_num, self.role,
                                                                                 self.nn_model.get_model_weights().unboxed))
             self.nn_model.set_model_weights(self.nn_model.get_model_weights() * -2)

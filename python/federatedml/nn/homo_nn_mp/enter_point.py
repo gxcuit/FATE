@@ -21,7 +21,7 @@ from federatedml.framework.homo.blocks.loss_scatter import LossScatterTransVar
 from federatedml.framework.homo.blocks.secure_aggregator import SecureAggregatorTransVar
 from federatedml.model_base import ModelBase
 from federatedml.nn.homo_nn._consts import _extract_meta, _extract_param
-from federatedml.param.homo_nn_param import HomoNNParam
+from federatedml.param.homo_nn_mp_param import HomoNNMPParam
 from federatedml.util import component_properties, consts
 from federatedml.util import LOGGER
 
@@ -29,13 +29,15 @@ from federatedml.util import LOGGER
 class HomoNNBase(ModelBase):
     def __init__(self, trans_var):
         super().__init__()
-        self.model_param = HomoNNParam()
+        self.model_param = HomoNNMPParam()
         self.transfer_variable = trans_var
         self._api_version = 0
 
     def _init_model(self, param):
         self.param = param
         self.set_version(param.api_version)
+        self.poison = param.poison
+        self.detect = param.detect
 
     def is_version_0(self):
         return self._api_version == 0
@@ -49,7 +51,7 @@ class HomoNNServer(HomoNNBase):
         super().__init__(trans_var=trans_var)
         self._init_iteration = 0
 
-    def _init_model(self, param: HomoNNParam):
+    def _init_model(self, param: HomoNNMPParam):
         super()._init_model(param)
         if self.is_version_0():
             from federatedml.nn.homo_nn_mp import _version_0
@@ -137,7 +139,7 @@ class HomoNNClient(HomoNNBase):
         super().__init__(trans_var=trans_var)
         self._trainer = ...
 
-    def _init_model(self, param: HomoNNParam):
+    def _init_model(self, param: HomoNNMPParam):
         super()._init_model(param)
         if self.is_version_0():
             from federatedml.nn.homo_nn_mp import _version_0
